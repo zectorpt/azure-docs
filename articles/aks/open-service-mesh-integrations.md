@@ -47,7 +47,59 @@ Ingress allows for traffic external to the mesh to be routed to services within 
 
     ```console
     export RELEASE_BRANCH=release-v1.2
-    kubectl apply -f https://raw.githubusercontent.com/openservicemesh/osm-docs/$RELEASE_BRANCH/manifests/samples/httpbin/httpbin.yaml -n httpbin
+    wget https://raw.githubusercontent.com/openservicemesh/osm-docs/$RELEASE_BRANCH/manifests/samples/httpbin/httpbin.yaml
+
+    Edit the downloaded file to add the "type: LoadBalancer", as example could be something like:
+    ```
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  labels:
+    app: httpbin
+    service: httpbin
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 14001
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      serviceAccountName: httpbin
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        kubernetes.io/os: linux
+      containers:
+      - image: kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        command: ["gunicorn", "-b", "0.0.0.0:14001", "httpbin:app", "-k", "gevent"]
+        ports:
+        - containerPort: 14001
+
+    
+    kubectl apply -f ./httpbin.yaml -n httpbin
     ```
 
 5. Verify the pods are up and running and have the envoy sidecar injected using the `kubectl get pods` command.
